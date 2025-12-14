@@ -7,3 +7,4 @@ nltk
 wordcloud
 onnxruntime
 keras-preprocessing
+tensorflow
