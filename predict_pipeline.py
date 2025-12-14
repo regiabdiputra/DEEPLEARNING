@@ -1,76 +1,52 @@
 import json
 import numpy as np
-import onnxruntime as ort
-from keras_preprocessing.sequence import pad_sequences
+import tensorflow as tf
+from tensorflow.keras.preprocessing.text import tokenizer_from_json
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-from preprocessing import preprocess_text
-from numeric_processing import extract_numeric_features
+# --- KONFIGURASI ---
+MAXLEN = 100
+PADDING_TYPE = 'post'
+TRUNCATING_TYPE = 'post'
 
+def load_resources():
+    tokenizer = None
+    model = None
 
-# ==========================
-# LOAD TOKENIZER (JSON)
-# ==========================
-with open("tokenizer.json") as f:
-    tokenizer_data = json.load(f)
+    # 1. Load Tokenizer (Fix: Menggunakan f.read())
+    try:
+        with open('tokenizer.json', 'r') as f:
+            data = f.read()
+            tokenizer = tokenizer_from_json(data)
+    except Exception as e:
+        print(f"Error loading tokenizer: {e}")
 
-from keras_preprocessing.text import tokenizer_from_json
-tokenizer = tokenizer_from_json(tokenizer_data)
+    # 2. Load Model
+    try:
+        model = tf.keras.models.load_model('spamnet_hybrid_attention.keras')
+    except Exception as e:
+        print(f"Error loading model: {e}")
 
+    return tokenizer, model
 
-# ==========================
-# LOAD SCALER & LABEL ENCODER & NUMERIC INFO
-# ==========================
-import pickle
+tokenizer, model = load_resources()
 
-scaler = pickle.load(open("scaler.pkl", "rb"))
-le_labels = pickle.load(open("label_encoder.pkl", "rb"))
-numeric_info = pickle.load(open("numeric_info.pkl", "rb"))
+def predict_email(text, domain_input):
+    if tokenizer is None or model is None:
+        return "Error: Resources not loaded", 0.0
 
-maxlen           = numeric_info["maxlen"]
-numeric_features = numeric_info["numeric_features"]
+    # --- A. Preprocessing Teks ---
+    sequences = tokenizer.texts_to_sequences([text])
+    padded_text = pad_sequences(sequences, maxlen=MAXLEN, padding=PADDING_TYPE, truncating=TRUNCATING_TYPE)
 
+    # --- B. Preprocessing Domain ---
+    domain_features = np.zeros((1, 7)) 
 
-# ==========================
-# LOAD ONNX MODEL
-# ==========================
-session = ort.InferenceSession("spamnet_hybrid_attention.onnx")
-
-
-# ==========================
-# PREDICT FUNCTION
-# ==========================
-def predict_email(text, from_domain="example.com"):
-    # 1️⃣ PREPROCESS TEXT
-    processed = preprocess_text(text)
-
-    # 2️⃣ TOKENIZE
-    seq = tokenizer.texts_to_sequences([processed])
-
-    # 3️⃣ PAD SEQUENCES (WAJIB int32 untuk ONNX)
-    padded = pad_sequences(
-        seq,
-        maxlen=maxlen,
-        padding='post'
-    ).astype(np.int32)          # *** FIX PENTING ***
-
-    # 4️⃣ NUMERIC FEATURES (WAJIB float32 untuk ONNX)
-    numeric_scaled = extract_numeric_features(
-        text,
-        from_domain,
-        scaler,
-        le_labels
-    ).astype(np.float32)        # *** FIX PENTING ***
-
-    # 5️⃣ RUN ONNX MODEL
-    inputs = {
-        "text_input": padded,
-        "num_input": numeric_scaled
-    }
-
-    outputs = session.run(None, inputs)
-    prob = float(outputs[0][0][0])
-
-    # 6️⃣ LABEL BASED ON PROBABILITY
-    label = "spam" if prob >= 0.5 else "ham"
-
-    return label, prob
+    # --- C. Prediksi ---
+    try:
+        prediction = model.predict([padded_text, domain_features], verbose=0)
+        prob = prediction[0][0]
+        label = "SPAM" if prob > 0.5 else "HAM (AMAN)"
+        return label, prob
+    except Exception as e:
+        return f"Error: {str(e)}", 0.0
