@@ -5,18 +5,19 @@ from tensorflow.keras.preprocessing.text import tokenizer_from_json
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 # --- KONFIGURASI ---
-MAXLEN = 100
+MAXLEN = 100  # Sesuaikan dengan model kamu (biasanya 100 atau 150)
 PADDING_TYPE = 'post'
 TRUNCATING_TYPE = 'post'
 
 def load_resources():
     tokenizer = None
     model = None
-
-    # 1. Load Tokenizer (Fix: Menggunakan f.read())
+    
+    # 1. Load Tokenizer (BAGIAN INI YANG DIPERBAIKI)
     try:
+        # Kita pakai f.read() agar terbaca sebagai STRING, bukan Dictionary
         with open('tokenizer.json', 'r') as f:
-            data = f.read()
+            data = f.read() 
             tokenizer = tokenizer_from_json(data)
     except Exception as e:
         print(f"Error loading tokenizer: {e}")
@@ -29,24 +30,29 @@ def load_resources():
 
     return tokenizer, model
 
+# Load resources di awal
 tokenizer, model = load_resources()
 
 def predict_email(text, domain_input):
     if tokenizer is None or model is None:
-        return "Error: Resources not loaded", 0.0
+        return "Error: Model/Tokenizer gagal di-load. Cek logs.", 0.0
 
     # --- A. Preprocessing Teks ---
     sequences = tokenizer.texts_to_sequences([text])
     padded_text = pad_sequences(sequences, maxlen=MAXLEN, padding=PADDING_TYPE, truncating=TRUNCATING_TYPE)
 
-    # --- B. Preprocessing Domain ---
+    # --- B. Preprocessing Domain (Dummy) ---
+    # Model hybrid butuh input kedua. Kita isi nol agar tidak error.
     domain_features = np.zeros((1, 7)) 
 
     # --- C. Prediksi ---
     try:
+        # Kirim 2 input: [Teks, Domain Features]
         prediction = model.predict([padded_text, domain_features], verbose=0)
         prob = prediction[0][0]
+
         label = "SPAM" if prob > 0.5 else "HAM (AMAN)"
         return label, prob
+
     except Exception as e:
-        return f"Error: {str(e)}", 0.0
+        return f"Error Prediction: {str(e)}", 0.0
