@@ -33,12 +33,12 @@ Kami menggunakan *temporal attention mechanism* untuk memungkinkan model memberi
 
 Model Hybrid Attention LSTM menunjukkan performa klasifikasi yang sangat baik pada data uji:
 
-| Metrik | Hasil | Sumber |
-| :--- | :--- | :--- |
-| **AUC Score** | **0.9574** (Sangat Baik) | |
-| **Akurasi Uji (Test Accuracy)** | **0.8833** | |
-| **F1-Score (Weighted Avg)** | 0.8836 | |
-| **Loss Uji (Test Loss)** | 0.2815 | |
+| Metrik | Hasil |
+| :--- | :--- |
+| **AUC Score** | **0.9574** (Sangat Baik) |
+| **Akurasi Uji (Test Accuracy)** | **0.8833** |
+| **F1-Score (Weighted Avg)** | 0.8836 |
+| **Loss Uji (Test Loss)** | 0.2815 |
 
 Model ini juga menunjukkan kemampuan generalisasi yang baik, ditunjukkan dari kurva *Training* dan *Validation* yang menunjukkan peningkatan akurasi konsisten hingga *early stopping* tercapai, tanpa mengalami *overfitting* signifikan.
 
